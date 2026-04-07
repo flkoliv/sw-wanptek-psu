@@ -1,76 +1,146 @@
+import logging
 import pickle
 import time
+from pathlib import Path
+
 import numpy as np
+
+log = logging.getLogger(__name__)
+
+PARAM_PATH = Path("./param")
+GRAPH_HISTORY_SECONDS = 600
+DEFAULT_BAUDRATE = 9600
+MIN_DEVICE_ADDRESS = 0
+MAX_DEVICE_ADDRESS = 31
 
 
 class PSUModel:
-    """Power supply model
-    """
-    def __init__(self):
-        """initiate to default values, awaiting an update
-        """
+    """Store the current PSU state and the user connection settings."""
+
+    def __init__(self) -> None:
         self.out_on = False
         self.ocp_on = False
         self.keyboard_locked = False
         self.endian = "little"
         self.constant_current = False
         self.alarm = False
-        self.real_voltage = 0
-        self.real_current = 0
-        self.set_voltage = 0
-        self.set_current = 0
-        self.max_voltage = 0
-        self.max_current = 0
-        self.data_array = np.empty([0, 4])
+
+        self.real_voltage = 0.0
+        self.real_current = 0.0
+        self.set_voltage = 0.0
+        self.set_current = 0.0
+        self.max_voltage = 0.0
+        self.max_current = 0.0
+
+        self.data_array = np.empty((0, 4))
         self.time_origin = time.time()
 
+        self.serial_port = ""
+        self.baudrate = DEFAULT_BAUDRATE
+        self.device_address = MIN_DEVICE_ADDRESS
+        self.load_settings()
+
+    @property
+    def serialPort(self) -> str:
+        """Return the configured serial port using the legacy attribute name."""
+        return self.serial_port
+
+    @serialPort.setter
+    def serialPort(self, value: str) -> None:
+        """Set the configured serial port using the legacy attribute name."""
+        self.serial_port = value
+
+    @property
+    def deviceAddress(self) -> int:
+        """Return the device address using the legacy attribute name."""
+        return self.device_address
+
+    @deviceAddress.setter
+    def deviceAddress(self, value: int) -> None:
+        """Set the device address using the legacy attribute name."""
+        self.device_address = value
+
+    def load_settings(self) -> None:
+        """Load persisted communication settings from the local parameter file."""
         try:
-            f = open("./param", "rb")
-            self.serialPort = pickle.load(f)
-            self.baudrate = pickle.load(f)
-            self.deviceAddress = pickle.load(f)
-            f.close()
-        except Exception:
-            print('no setup file')
+            with PARAM_PATH.open("rb") as file:
+                self.serial_port = pickle.load(file)
+                self.baudrate = pickle.load(file)
+                self.device_address = pickle.load(file)
+        except (FileNotFoundError, EOFError, pickle.PickleError):
+            log.info("No saved connection settings found")
 
-    def update_data_array(self):
-        """save last 10 minutes of voltage, current
-           and power datas in a numpy array
-        """
-        if time.time()-self.time_origin > 600:
-            self.data_array = np.delete(self.data_array, 0, 0)
-        self.data_array = np.append(self.data_array, [[
-            time.time()-self.time_origin,
-            self.real_voltage,
-            self.real_current,
-            self.real_voltage*self.real_current]], axis=0)
+    def save_settings(self) -> None:
+        """Persist the current communication settings to the local parameter file."""
+        with PARAM_PATH.open("wb") as file:
+            pickle.dump(self.serial_port, file)
+            pickle.dump(self.baudrate, file)
+            pickle.dump(self.device_address, file)
+        log.info(
+            "Settings saved: %s, %s baud, address %s",
+            self.serial_port,
+            self.baudrate,
+            self.device_address,
+        )
 
-    def update_values(self, output_on, ocp_on, keyboard_locked, endian,
-                      constant_current, alarm_triggered, real_voltage,
-                      real_current, set_voltage, set_current, max_voltage,
-                      max_current):
-        """update all variables with current values
+    def has_valid_connection_settings(self) -> bool:
+        """Return whether the model contains enough information to connect."""
+        return bool(self.serial_port) and self.baudrate > 0 and (
+            MIN_DEVICE_ADDRESS <= self.device_address <= MAX_DEVICE_ADDRESS
+        )
 
-        Args:
-            output_on (bool): output on or off
-            ocp_on (bool): OCP on or off
-            keyboard_locked (bool): keyboard locked or not
-            endian (str): "little" or "big"
-            constant_current (bool): is CC light on or not
-            alarm_triggered (bool): is alarm triggered or not
-            real_voltage (float): real output voltage
-            real_current (float): real output current
-            set_voltage (float): requested voltage
-            set_current (float): requested current
-            max_voltage (float): maximum supported voltage
-            max_current (float): maximum supported current
-        """
-        self.output_on = output_on
+    def clamp_setpoints(self) -> None:
+        """Clamp requested voltage and current to the device reported limits."""
+        if self.max_voltage > 0:
+            self.set_voltage = min(max(self.set_voltage, 0.0), self.max_voltage)
+        else:
+            self.set_voltage = max(self.set_voltage, 0.0)
+
+        if self.max_current > 0:
+            self.set_current = min(max(self.set_current, 0.0), self.max_current)
+        else:
+            self.set_current = max(self.set_current, 0.0)
+
+    def reset_measurements(self) -> None:
+        """Reset transient measurements after a disconnect or failed read."""
+        self.real_voltage = 0.0
+        self.real_current = 0.0
+        self.constant_current = False
+        self.alarm = False
+
+    def update_data_array(self) -> None:
+        """Store the last 10 minutes of voltage, current and power data."""
+        elapsed = time.time() - self.time_origin
+        new_row = np.array(
+            [[elapsed, self.real_voltage, self.real_current, self.get_real_power()]]
+        )
+        self.data_array = np.append(self.data_array, new_row, axis=0)
+
+        while len(self.data_array) and elapsed - self.data_array[0, 0] > GRAPH_HISTORY_SECONDS:
+            self.data_array = np.delete(self.data_array, 0, axis=0)
+
+    def update_values(
+        self,
+        output_on: bool,
+        ocp_on: bool,
+        keyboard_locked: bool,
+        endian: str,
+        constant_current: bool,
+        alarm_triggered: bool,
+        real_voltage: float,
+        real_current: float,
+        set_voltage: float,
+        set_current: float,
+        max_voltage: float,
+        max_current: float,
+    ) -> None:
+        """Update the full device state from values decoded by the controller."""
+        self.out_on = output_on
         self.ocp_on = ocp_on
         self.keyboard_locked = keyboard_locked
         self.endian = endian
         self.constant_current = constant_current
-        self.alarm_triggered = alarm_triggered
+        self.alarm = alarm_triggered
         self.real_voltage = real_voltage
         self.real_current = real_current
         self.set_voltage = set_voltage
@@ -78,106 +148,54 @@ class PSUModel:
         self.max_voltage = max_voltage
         self.max_current = max_current
 
-    def is_output_on(self):
-        """getter output ON
-
-        Returns:
-            bool: True if output ON, otherwise False
-        """
+    def is_output_on(self) -> bool:
+        """Return whether the PSU output is currently enabled."""
         return self.out_on
 
-    def is_ocp_on(self):
-        """getter OCP On
-
-        Returns:
-            bool: True if OCP ON, otherwise False
-        """
+    def is_ocp_on(self) -> bool:
+        """Return whether over-current protection is enabled."""
         return self.ocp_on
 
-    def is_keyboard_locked(self):
-        """getter keyboard locked
-
-        Returns:
-            bool: True if keyboard locked, otherwise False
-        """
+    def is_keyboard_locked(self) -> bool:
+        """Return whether remote control is enabled through the software."""
         return self.keyboard_locked
 
-    def get_endian(self):
-        """getter endian type for modbus com
-
-        Returns:
-            str: "little" or "big"
-        """
+    def get_endian(self) -> str:
+        """Return the byte order reported by the device."""
         return self.endian
 
-    def is_constant_current(self):
-        """getter constant current
-
-        Returns:
-            bool: True if constant current, otherwise False
-        """
+    def is_constant_current(self) -> bool:
+        """Return whether the PSU is currently regulating in constant current mode."""
         return self.constant_current
 
-    def is_alarm_triggered(self):
-        """getter alarm triggered
+    def is_alarm_triggered(self) -> bool:
+        """Return whether the PSU currently reports an alarm state."""
+        return self.alarm
 
-        Returns:
-            bool: True if alarm triggered, otherwise False
-        """
-        return self.alarm_triggered
-
-    def get_real_voltage(self):
-        """getter real voltage
-
-        Returns:
-            float: output voltage
-        """
+    def get_real_voltage(self) -> float:
+        """Return the measured output voltage."""
         return self.real_voltage
 
-    def get_real_current(self):
-        """getter real current
-
-        Returns:
-            float: output current
-        """
+    def get_real_current(self) -> float:
+        """Return the measured output current."""
         return self.real_current
 
-    def get_real_power(self):
-        """getter real power
+    def get_real_power(self) -> float:
+        """Return the measured output power."""
+        return self.real_voltage * self.real_current
 
-        Returns:
-            float: output power (P=UI)
-        """
-        return (self.real_voltage * self.real_current)
-
-    def get_set_voltage(self):
-        """getter set voltage
-
-        Returns:
-            float: requested voltage
-        """
+    def get_set_voltage(self) -> float:
+        """Return the configured voltage setpoint."""
         return self.set_voltage
 
-    def get_set_current(self):
-        """getter set current
-
-        Returns:
-            float: requested current
-        """
+    def get_set_current(self) -> float:
+        """Return the configured current setpoint."""
         return self.set_current
 
-    def get_max_voltage(self):
-        """getter maximum voltage
-
-        Returns:
-            float: maximum supported voltage
-        """
+    def get_max_voltage(self) -> float:
+        """Return the maximum voltage supported by the connected PSU."""
         return self.max_voltage
 
-    def get_max_current(self):
-        """getter maximum current
-
-        Returns:
-            float: maximum supported current
-        """
+    def get_max_current(self) -> float:
+        """Return the maximum current supported by the connected PSU."""
         return self.max_current
