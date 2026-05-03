@@ -1,5 +1,10 @@
 # Wanptek PSU Controller
 
+[![PyPI version](https://img.shields.io/pypi/v/wanptek-controller.svg)](https://pypi.org/project/wanptek-controller/)
+[![Python versions](https://img.shields.io/pypi/pyversions/wanptek-controller.svg)](https://pypi.org/project/wanptek-controller/)
+[![Publish to PyPI](https://github.com/flkoliv/sw-wanptek-psu/actions/workflows/publish.yml/badge.svg)](https://github.com/flkoliv/sw-wanptek-psu/actions/workflows/publish.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Desktop application to control a Wanptek DC power supply via USB / serial port.
 Compatible with Windows, macOS and Linux.
 
