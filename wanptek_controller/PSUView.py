@@ -464,7 +464,7 @@ class PsuWindow(customtkinter.CTkFrame):
 
         self.knob_frame.voltage_knob.configure(end=max_voltage or 0)
         self.knob_frame.current_knob.configure(end=max_current or 0)
-        self._update_knob_state(connected, keyboard_locked, set_voltage, set_current)
+        self._update_knob_state(connected, keyboard_locked, set_voltage, set_current, max_voltage, max_current)
 
         if alarm and connected:
             self._display_alarm_state()
@@ -485,6 +485,8 @@ class PsuWindow(customtkinter.CTkFrame):
         keyboard_locked,
         set_voltage,
         set_current,
+        max_voltage=0,
+        max_current=0,
     ) -> None:
         """Enable or disable the knobs depending on the current control mode."""
         if connected and keyboard_locked:
@@ -495,8 +497,10 @@ class PsuWindow(customtkinter.CTkFrame):
                 self._lock_button_active = True
             return
 
-        self.knob_frame.voltage_knob.set(set_voltage)
-        self.knob_frame.current_knob.set(set_current)
+        if max_voltage > 0:
+            self.knob_frame.voltage_knob.set(set_voltage)
+        if max_current > 0:
+            self.knob_frame.current_knob.set(set_current)
         self.knob_frame.voltage_knob.configure(state="disabled")
         self.knob_frame.current_knob.configure(state="disabled")
         if self._lock_button_active is not False:
