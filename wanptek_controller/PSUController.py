@@ -101,6 +101,7 @@ class PSUController:
                 baudrate=self.model.baudrate,
                 timeout=SERIAL_TIMEOUT_SECONDS,
                 parity="N",
+                exclusive=False,
             )
             if not client.connect():
                 raise ConnectionError("Serial connection could not be opened.")
