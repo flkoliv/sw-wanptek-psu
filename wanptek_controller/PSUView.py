@@ -47,8 +47,8 @@ class LCDFrame(customtkinter.CTkFrame):
         super().__init__(parent)
         self.configure(fg_color="black")
 
-        customtkinter.FontManager.load_font(DIGITAL_FONT_PATH)
-        customtkinter.FontManager.load_font(SONO_FONT_PATH)
+        customtkinter.FontManager.load_font(str(DIGITAL_FONT_PATH))
+        customtkinter.FontManager.load_font(str(SONO_FONT_PATH))
 
         logo_image = customtkinter.CTkImage(
             light_image=Image.open(LOGO_PATH),
@@ -306,7 +306,7 @@ class PsuWindow(customtkinter.CTkFrame):
             return
         try:
             pygame.mixer.init()
-            self.sound = pygame.mixer.Sound(SOUND_PATH)
+            self.sound = pygame.mixer.Sound(str(SOUND_PATH))
             self.sound_enabled = True
         except Exception:
             self.sound_enabled = False
@@ -576,7 +576,7 @@ class PsuWindow(customtkinter.CTkFrame):
         self._graph_figure = plt.figure(num="Wanptek DC Power Supply")
         figure_manager = plt.get_current_fig_manager()
         if os.name == "nt":
-            figure_manager.window.wm_iconbitmap(GRAPH_ICON_PATH)
+            figure_manager.window.wm_iconbitmap(str(GRAPH_ICON_PATH))
         formatter = ticker.FuncFormatter(
             lambda value, _: time.strftime("%M:%S", time.gmtime(value))
         )
