@@ -2,10 +2,24 @@ import logging
 import time
 from threading import Event, Thread
 
+import serial as _serial
 from pymodbus import FramerType
 from pymodbus.client import ModbusSerialClient as ModbusClient
 
 log = logging.getLogger(__name__)
+
+# pymodbus 3.9+ triggers exclusive port locking via pyserial (TIOCEXCL)
+# which fails with EAGAIN on some Linux systems. Force exclusive=False
+# so pyserial never attempts the exclusive lock.
+_orig_serial_open = _serial.Serial.open
+
+
+def _non_exclusive_open(self) -> None:
+    self._exclusive = False
+    _orig_serial_open(self)
+
+
+_serial.Serial.open = _non_exclusive_open
 
 READ_ADDRESS = 0x00
 READ_REGISTER_COUNT = 8
@@ -101,7 +115,6 @@ class PSUController:
                 baudrate=self.model.baudrate,
                 timeout=SERIAL_TIMEOUT_SECONDS,
                 parity="N",
-                exclusive=False,
             )
             if not client.connect():
                 raise ConnectionError("Serial connection could not be opened.")
