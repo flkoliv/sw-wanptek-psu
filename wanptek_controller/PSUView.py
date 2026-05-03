@@ -648,7 +648,7 @@ class ToplevelWindow(customtkinter.CTkToplevel):
         self.geometry("300x180")
         self.title("Setup")
         self.focus()
-        self.grab_set()
+        self.after(100, self.grab_set)
 
         port_list = [port.device for port in serial.tools.list_ports.comports()] or [""]
         device_address_list = [str(index) for index in range(32)]
