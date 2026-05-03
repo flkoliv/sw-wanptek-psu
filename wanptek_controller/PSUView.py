@@ -11,11 +11,16 @@ os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 import customtkinter
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import pygame
 import serial.tools.list_ports
 from matplotlib.animation import FuncAnimation
 from PIL import Image
 from tkdial import Dial
+
+try:
+    import pygame
+    _PYGAME_AVAILABLE = True
+except ImportError:
+    _PYGAME_AVAILABLE = False
 
 BACKGROUND_COLOR = "#23272d"
 MUTED_TEXT_COLOR = "#737574"
@@ -295,6 +300,10 @@ class PsuWindow(customtkinter.CTkFrame):
 
     def _init_sound(self) -> None:
         """Initialize the optional alarm sound without breaking the UI on failure."""
+        if not _PYGAME_AVAILABLE:
+            self.sound_enabled = False
+            log.warning("Alarm sound unavailable (pygame not installed)")
+            return
         try:
             pygame.mixer.init()
             self.sound = pygame.mixer.Sound(SOUND_PATH)
