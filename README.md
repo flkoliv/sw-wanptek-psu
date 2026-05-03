@@ -1,318 +1,203 @@
 # Wanptek PSU Controller
 
-Application desktop pour piloter une alimentation Wanptek via USB / port serie.
-Compatible Windows, macOS et Linux.
+Desktop application to control a Wanptek DC power supply via USB / serial port.
+Compatible with Windows, macOS and Linux.
 
-Le programme permet de :
+Features:
 
-- visualiser la tension, le courant et la puissance
-- modifier les consignes de tension et de courant
-- activer ou desactiver la sortie
-- activer ou desactiver l'OCP
-- afficher l'historique des mesures dans une fenetre de graphe
+- Display voltage, current and power in real time
+- Adjust voltage and current setpoints
+- Enable or disable the output
+- Enable or disable OCP (over-current protection)
+- Plot measurement history in a live graph window
 
-## Captures et comportement
+## Interface
 
-L'application repose sur une interface `customtkinter` avec :
+The application uses a `customtkinter` interface with:
 
-- un affichage principal type LCD
-- deux molettes de reglage
-- une barre de boutons pour le menu, le graphe, le verrouillage, l'OCP et la sortie
+- An LCD-style main display
+- Two adjustment knobs
+- A button bar for Menu, Graph, Lock, OCP and Output control
 
-## Prerequis communs
+## Requirements
 
-- Python 3.10 ou superieur avec `tkinter` disponible
-- Une alimentation Wanptek compatible
-- Un adaptateur USB / serie reconnu par le systeme
+- Python 3.10 or later with `tkinter` available
+- A compatible Wanptek DC power supply
+- A USB-to-serial adapter recognised by your OS
 
 ---
 
-## Installation — Windows
+## Installation
 
-### 1. Installer Python
+### Recommended — via pip (all platforms)
 
-Installer Python 3.10 depuis l'installateur officiel Windows.
-
-Point important :
-
-- verifier que `tcl/tk and IDLE` est bien installe
-
-### 2. Cloner ou copier le projet
-
-```text
-C:\projets\Wanptek
+```bash
+pip install wanptek-controller
+wanptek-controller
 ```
 
-### 3. Creer l'environnement virtuel
+### From source
 
-Dans PowerShell, depuis le dossier du projet :
+Clone the repository and install in a virtual environment:
 
-```powershell
-py -3.10 -m venv .venv
-```
-
-### 4. Activer l'environnement virtuel
-
-Si PowerShell bloque les scripts :
-
-```powershell
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Puis activer l'environnement :
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-### 5. Installer les dependances
-
-```powershell
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+```bash
+git clone https://github.com/flkoliv/sw-wanptek-psu.git
+cd sw-wanptek-psu
+python -m venv .venv
+source .venv/bin/activate      # macOS / Linux
+.\.venv\Scripts\Activate.ps1  # Windows (PowerShell)
+pip install -e .
+wanptek-controller
 ```
 
 ---
 
-## Installation — macOS
+## Platform notes
 
-### 1. Installer Python
+### Windows
 
-```bash
-brew install python@3.10
+- Install Python 3.10 from the official installer and make sure **tcl/tk and IDLE** is checked
+- If PowerShell blocks script execution: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
+- Serial ports appear as `COM3`, `COM4`, ...
+
+### macOS
+
+- Install Python and tkinter via Homebrew:
+  ```bash
+  brew install python@3.10 python-tk@3.10
+  ```
+- Serial ports appear as `/dev/cu.usbserial-XXXX` or `/dev/cu.SLAB_USBtoUART`
+
+### Linux
+
+- Install Python and tkinter:
+  ```bash
+  # Debian / Ubuntu
+  sudo apt install python3.10 python3.10-venv python3-tk
+
+  # Fedora
+  sudo dnf install python3.10 python3-tkinter
+  ```
+- Add your user to the `dialout` group to access the serial port:
+  ```bash
+  sudo usermod -aG dialout $USER
+  ```
+  Log out and back in for the change to take effect.
+- Serial ports appear as `/dev/ttyUSB0`, `/dev/ttyACM0`, ...
+
+---
+
+## First-time setup
+
+On first launch:
+
+1. Click **Menu**
+2. Select the serial port connected to your power supply
+3. Select the Modbus device address
+4. Select the baud rate
+5. Click **Save**
+
+The application will then attempt to connect automatically.
+
+Settings are saved to `~/.wanptek_controller/param`.
+
+---
+
+## Usage
+
+### Main display
+
+Shows:
+
+- Output voltage
+- Output current
+- Output power
+- OCP status
+- Output status
+
+### Buttons
+
+- **Menu** — open the serial configuration dialog
+- **Graph** — open the measurement history window
+- **Lock** — enable or disable software control of the setpoints
+- **OCP** — toggle over-current protection
+- **OUT** — enable or disable the PSU output
+
+### Voltage / current adjustment
+
+When **Lock** is active:
+
+- The knobs become interactive
+- New values are sent to the power supply
+
+When **Lock** is inactive:
+
+- The knobs display the current setpoints read-only
+
+### Graph
+
+The **Graph** window shows the last 10 minutes of:
+
+- Voltage
+- Current
+- Power
+
+---
+
+## Project structure
+
 ```
-
-Verifier que `tkinter` est present :
-
-```bash
-python3.10 -c "import tkinter"
-```
-
-Si absent, installer :
-
-```bash
-brew install python-tk@3.10
-```
-
-### 2. Cloner ou copier le projet
-
-```bash
-git clone <url-du-depot> ~/projets/Wanptek
-cd ~/projets/Wanptek
-```
-
-### 3. Creer et activer l'environnement virtuel
-
-```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-```
-
-### 4. Installer les dependances
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
+wanptek_controller/
+├── main.py          — application entry point
+├── PSUModel.py      — state and persisted settings
+├── PSUController.py — Modbus communication and control logic
+├── PSUView.py       — graphical interface
+├── images/          — icons and logo
+└── ressources/      — fonts and sounds
+main.py              — development shim (calls wanptek_controller.main)
+run.pyw              — GUI launcher (no console window on Windows)
 ```
 
 ---
 
-## Installation — Linux
-
-### 1. Installer Python et tkinter
-
-Sur Debian / Ubuntu :
-
-```bash
-sudo apt update
-sudo apt install python3.10 python3.10-venv python3-tk
-```
-
-Sur Fedora :
-
-```bash
-sudo dnf install python3.10 python3-tkinter
-```
-
-### 2. Autoriser l'acces au port serie
-
-Ajouter votre utilisateur au groupe `dialout` :
-
-```bash
-sudo usermod -aG dialout $USER
-```
-
-Se deconnecter puis se reconnecter pour que le changement soit pris en compte.
-
-### 3. Cloner ou copier le projet
-
-```bash
-git clone <url-du-depot> ~/projets/Wanptek
-cd ~/projets/Wanptek
-```
-
-### 4. Creer et activer l'environnement virtuel
-
-```bash
-python3.10 -m venv .venv
-source .venv/bin/activate
-```
-
-### 5. Installer les dependances
-
-```bash
-pip install --upgrade pip
-pip install -r requirements.txt
-```
-
----
-
-## Lancement
-
-### Depuis le terminal (toutes plateformes)
-
-```bash
-python main.py
-```
-
-### Via le lanceur graphique
-
-**Windows** (sans console) :
-
-```powershell
-pythonw run.pyw
-```
-
-**macOS / Linux** :
-
-```bash
-python run.pyw
-```
-
-`run.pyw` detecte automatiquement le systeme et utilise le Python du dossier `.venv`.
-Si l'environnement virtuel n'existe pas, un message d'erreur s'affiche.
-
----
-
-## Premiere configuration
-
-Au premier lancement :
-
-1. cliquer sur `Menu`
-2. choisir le port serie correspondant a l'alimentation
-   - Windows : `COM3`, `COM4`, ...
-   - Linux : `/dev/ttyUSB0`, `/dev/ttyACM0`, ...
-   - macOS : `/dev/cu.usbserial-XXXX`, `/dev/cu.SLAB_USBtoUART`, ...
-3. choisir l'adresse Modbus de l'appareil
-4. choisir la vitesse serie
-5. cliquer sur `Save`
-
-Le programme tentera ensuite de se connecter automatiquement.
-
-Les parametres sont sauvegardes dans un fichier local `param`.
-
----
-
-## Utilisation
-
-### Affichage principal
-
-L'ecran principal affiche :
-
-- la tension
-- le courant
-- la puissance
-- l'etat OCP
-- l'etat de sortie
-
-### Boutons
-
-- `Menu` : ouvre la fenetre de configuration serie
-- `Graph` : ouvre la fenetre d'historique des mesures
-- `Lock` : active ou desactive le pilotage logiciel des consignes
-- `OCP` : active ou desactive la protection sur courant
-- `OUT` : active ou coupe la sortie de l'alimentation
-
-### Reglage tension / courant
-
-Quand le mode `Lock` est actif :
-
-- les molettes deviennent modifiables
-- les nouvelles valeurs sont envoyees a l'alimentation
-
-Quand `Lock` est inactif :
-
-- les molettes affichent simplement les consignes courantes
-
-### Graphe
-
-La fenetre `Graph` affiche l'historique recent de :
-
-- la tension
-- le courant
-- la puissance
-
-Le programme conserve environ 10 minutes de mesures.
-
----
-
-## Architecture du projet
-
-- `main.py` : point d'entree principal
-- `run.pyw` : lanceur sans console (Windows) / lanceur graphique (macOS, Linux)
-- `PSUModel.py` : etat de l'application et configuration sauvegardee
-- `PSUController.py` : communication Modbus et logique de controle
-- `PSUView.py` : interface graphique
-
----
-
-## Depannage
+## Troubleshooting
 
 ### `ModuleNotFoundError: No module named 'tkinter'`
 
-La distribution Python installee ne contient pas Tk.
+Your Python installation does not include Tk.
 
-- **Windows** : reinstaller Python 3.10 avec `tcl/tk and IDLE`
-- **macOS** : `brew install python-tk@3.10`
-- **Linux** : `sudo apt install python3-tk` (ou equivalent)
+- **Windows** — reinstall Python 3.10 with **tcl/tk and IDLE** checked
+- **macOS** — `brew install python-tk@3.10`
+- **Linux** — `sudo apt install python3-tk` (or equivalent)
 
-### PowerShell refuse `Activate.ps1` (Windows)
+### PowerShell blocks `Activate.ps1` (Windows)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\.venv\Scripts\Activate.ps1
 ```
 
-### Permission refusee sur le port serie (Linux)
+### Serial port permission denied (Linux)
 
 ```bash
 sudo usermod -aG dialout $USER
 ```
 
-Se deconnecter puis se reconnecter.
+Log out and back in.
 
-### L'application ne se connecte pas
+### Application does not connect
 
-Verifier :
+- Check that the correct serial port is selected
+- Check that the Modbus address matches the device
+- Make sure the power supply is switched on
+- Check the USB-to-serial cable and driver
 
-- que le bon port serie est selectionne
-- que l'adresse Modbus est correcte
-- que l'alimentation est allumee
-- que le cable USB / serie fonctionne
-- que le pilote serie est bien installe
+### Graph window does not open
 
-### Le graphe ne s'ouvre pas
-
-Le graphe ne s'ouvre que si au moins une mesure a deja ete recue.
+The graph only opens once at least one measurement has been received.
 
 ---
 
-## Notes
+## License
 
-- Le projet a ete valide avec Python 3.10.
-- Compatible Windows, macOS et Linux.
-- Le fichier `requirements.txt` contient les dependances Python du projet.
-
-## Licence
-
-Voir le fichier `LICENSE`.
+See [LICENSE](LICENSE).
