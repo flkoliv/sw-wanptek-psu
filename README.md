@@ -29,12 +29,67 @@ The application uses a `customtkinter` interface with:
 
 ## Installation
 
-### Recommended — via pip (all platforms)
+### Recommended — via pipx (all platforms)
+
+[pipx](https://pipx.pypa.io) installs the application in an isolated environment automatically,
+with no need to manage a virtual environment manually.
+
+**Install pipx first:**
 
 ```bash
+# Windows
+winget install pipx
+
+# macOS
+brew install pipx
+
+# Debian / Ubuntu
+sudo apt install pipx
+
+# Fedora
+sudo dnf install pipx
+```
+
+**Then install and run the application:**
+
+```bash
+pipx install wanptek-controller
+wanptek-controller
+```
+
+**Update:**
+
+```bash
+pipx upgrade wanptek-controller
+```
+
+---
+
+### Alternative — via pip with a virtual environment
+
+If you prefer pip, use a virtual environment to avoid conflicts with system packages:
+
+```bash
+python -m venv ~/.venv/wanptek
+source ~/.venv/wanptek/bin/activate   # macOS / Linux
+.\.venv\Scripts\Activate.ps1          # Windows (PowerShell)
 pip install wanptek-controller
 wanptek-controller
 ```
+
+To launch the application later:
+
+```bash
+source ~/.venv/wanptek/bin/activate && wanptek-controller   # macOS / Linux
+```
+
+Or add an alias to your shell profile (`~/.bashrc`, `~/.zshrc`):
+
+```bash
+alias wanptek='source ~/.venv/wanptek/bin/activate && wanptek-controller'
+```
+
+---
 
 ### From source
 
@@ -56,7 +111,7 @@ wanptek-controller
 
 ### Windows
 
-- Install Python 3.10 from the official installer and make sure **tcl/tk and IDLE** is checked
+- Install Python 3.10 or later from the official installer and make sure **tcl/tk and IDLE** is checked
 - If PowerShell blocks script execution: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 - Serial ports appear as `COM3`, `COM4`, ...
 
@@ -64,7 +119,7 @@ wanptek-controller
 
 - Install Python and tkinter via Homebrew:
   ```bash
-  brew install python@3.10 python-tk@3.10
+  brew install python-tk
   ```
 - Serial ports appear as `/dev/cu.usbserial-XXXX` or `/dev/cu.SLAB_USBtoUART`
 
@@ -73,16 +128,16 @@ wanptek-controller
 - Install Python and tkinter:
   ```bash
   # Debian / Ubuntu
-  sudo apt install python3.10 python3.10-venv python3-tk
+  sudo apt install python3 python3-venv python3-tk pipx
 
   # Fedora
-  sudo dnf install python3.10 python3-tkinter
+  sudo dnf install python3 python3-tkinter pipx
   ```
 - Add your user to the `dialout` group to access the serial port:
   ```bash
   sudo usermod -aG dialout $USER
   ```
-  Log out and back in for the change to take effect.
+  Reboot or log out and back in for the change to take effect.
 - Serial ports appear as `/dev/ttyUSB0`, `/dev/ttyACM0`, ...
 
 ---
@@ -94,10 +149,11 @@ On first launch:
 1. Click **Menu**
 2. Select the serial port connected to your power supply
 3. Select the Modbus device address
-4. Select the baud rate
+4. Select the baud rate (default: 2400)
 5. Click **Save**
 
 The application will then attempt to connect automatically.
+The status is shown next to the LED indicator (bottom of the knob panel).
 
 Settings are saved to `~/.wanptek_controller/param`.
 
@@ -166,9 +222,9 @@ run.pyw              — GUI launcher (no console window on Windows)
 
 Your Python installation does not include Tk.
 
-- **Windows** — reinstall Python 3.10 with **tcl/tk and IDLE** checked
-- **macOS** — `brew install python-tk@3.10`
-- **Linux** — `sudo apt install python3-tk` (or equivalent)
+- **Windows** — reinstall Python with **tcl/tk and IDLE** checked
+- **macOS** — `brew install python-tk`
+- **Linux** — `sudo apt install python3-tk` (or `sudo dnf install python3-tkinter`)
 
 ### PowerShell blocks `Activate.ps1` (Windows)
 
@@ -183,14 +239,15 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 sudo usermod -aG dialout $USER
 ```
 
-Log out and back in.
+Reboot or log out and back in for the change to take effect.
 
 ### Application does not connect
 
-- Check that the correct serial port is selected
-- Check that the Modbus address matches the device
+- Check that the correct serial port is selected in **Menu**
+- The connection status is shown next to the LED — read the message for details
+- Default baud rate is 2400 — adjust in **Menu** if your device uses a different rate
 - Make sure the power supply is switched on
-- Check the USB-to-serial cable and driver
+- Check the USB-to-serial cable and driver (CH340, CP210x, FTDI...)
 
 ### Graph window does not open
 
