@@ -564,7 +564,8 @@ class PsuWindow(customtkinter.CTkFrame):
         self.killed = False
         self._graph_figure = plt.figure(num="Wanptek DC Power Supply")
         figure_manager = plt.get_current_fig_manager()
-        figure_manager.window.wm_iconbitmap(GRAPH_ICON_PATH)
+        if os.name == "nt":
+            figure_manager.window.wm_iconbitmap(GRAPH_ICON_PATH)
         formatter = ticker.FuncFormatter(
             lambda value, _: time.strftime("%M:%S", time.gmtime(value))
         )
