@@ -2,7 +2,6 @@ import logging
 import time
 from threading import Event, Thread
 
-import crcmod
 from pymodbus import FramerType
 from pymodbus.client import ModbusSerialClient as ModbusClient
 
@@ -227,38 +226,37 @@ class PSUController:
             if response.isError():
                 raise ConnectionError(f"Modbus read error: {response}")
 
-            result = response.encode()
-            status_bits = f"{result[1]:08b}"
-            voltage_bits = f"{result[2]:08b}"
-            current_bits = f"{result[3]:08b}"
+            regs = response.registers  # 8 x uint16, big-endian decoded
+
+            status_byte = (regs[0] >> 8) & 0xFF
+            voltage_byte = regs[0] & 0xFF
+            current_byte = (regs[1] >> 8) & 0xFF
+
+            status_bits = f"{status_byte:08b}"
+            voltage_bits = f"{voltage_byte:08b}"
+            current_bits = f"{current_byte:08b}"
 
             self.model.out_on = status_bits[-1] == "1"
             self.model.ocp_on = status_bits[-2] == "1"
-            self.model.endian = "big" if status_bits[-4] == "1" else "little"
+            endian = "big" if status_bits[-4] == "1" else "little"
+            self.model.endian = endian
             self.model.constant_current = status_bits[-5] == "1"
             self.model.alarm = status_bits[-6] == "1"
 
             decimal_voltage = 0.1 if voltage_bits[0] == "1" else 0.01
             decimal_current = 0.01 if current_bits[0] == "1" else 0.001
 
-            self.model.real_voltage = round(
-                int.from_bytes(result[5:7], self.model.endian) * decimal_voltage, 2
-            )
-            self.model.real_current = round(
-                int.from_bytes(result[7:9], self.model.endian) * decimal_current, 3
-            )
-            self.model.set_voltage = round(
-                int.from_bytes(result[9:11], self.model.endian) * decimal_voltage, 2
-            )
-            self.model.set_current = round(
-                int.from_bytes(result[11:13], self.model.endian) * decimal_current, 3
-            )
-            self.model.max_voltage = round(
-                int.from_bytes(result[13:15], self.model.endian) * decimal_voltage, 2
-            )
-            self.model.max_current = round(
-                int.from_bytes(result[15:17], self.model.endian) * decimal_current, 3
-            )
+            def _reg(r: int) -> int:
+                if endian == "big":
+                    return r
+                return ((r & 0xFF) << 8) | ((r >> 8) & 0xFF)
+
+            self.model.real_voltage = round(_reg(regs[2]) * decimal_voltage, 2)
+            self.model.real_current = round(_reg(regs[3]) * decimal_current, 3)
+            self.model.set_voltage = round(_reg(regs[4]) * decimal_voltage, 2)
+            self.model.set_current = round(_reg(regs[5]) * decimal_current, 3)
+            self.model.max_voltage = round(_reg(regs[6]) * decimal_voltage, 2)
+            self.model.max_current = round(_reg(regs[7]) * decimal_current, 3)
             self.model.clamp_setpoints()
             self.model.update_data_array()
             self.connected = True
@@ -273,28 +271,30 @@ class PSUController:
             self._mark_disconnected(log_error=False)
 
     def write_data(self) -> None:
-        """Build and send a raw Modbus frame containing the current setpoints."""
+        """Write the current setpoints to the device via Modbus FC16."""
         try:
             if self._stop_event.is_set() or not self.client:
                 raise ConnectionError("No active Modbus client.")
 
             self.model.clamp_setpoints()
 
-            payload = bytearray(b"\x00\x10\x00\x00\x00\x03\x06")
-            status_bits = (
+            status_byte = int(
                 f"00000{int(self.model.keyboard_locked)}"
-                f"{int(self.model.ocp_on)}{int(self.model.out_on)}"
+                f"{int(self.model.ocp_on)}{int(self.model.out_on)}",
+                2,
             )
-            payload.extend(int(status_bits, 2).to_bytes(1, "little"))
-            payload.extend(b"\x00")
-            payload.extend(int(round(self.model.set_voltage * 100)).to_bytes(2, "little"))
-            payload.extend(int(round(self.model.set_current * 1000)).to_bytes(2, "little"))
+            volt_raw = int(round(self.model.set_voltage * 100))
+            curr_raw = int(round(self.model.set_current * 1000))
 
-            crc16 = crcmod.mkCrcFun(0x18005, rev=True, initCrc=0xFFFF, xorOut=0x0000)
-            payload.extend(crc16(payload).to_bytes(2, "little"))
+            # PSU expects little-endian byte order inside each register
+            def _swap(v: int) -> int:
+                return ((v & 0xFF) << 8) | ((v >> 8) & 0xFF)
 
-            self.client.send(bytes(payload))
-            self.client._wait_for_data()
+            self.client.write_registers(
+                address=0,
+                values=[status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
+                slave=self.model.device_address,
+            )
         except Exception as exc:
             if self._stop_event.is_set():
                 return
