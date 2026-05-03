@@ -4,6 +4,7 @@ import threading
 import time
 import tkinter
 import tkinter.messagebox as messagebox
+from pathlib import Path
 
 os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
 
@@ -22,11 +23,12 @@ BUTTON_TEXT_COLOR = "grey40"
 BUTTON_BG_COLOR = "grey10"
 BUTTON_HOVER_COLOR = "grey25"
 
-LOGO_PATH = "images/logo.png"
-GRAPH_ICON_PATH = "./images/favicon.png"
-SOUND_PATH = "./ressources/censor-beep.wav"
-DIGITAL_FONT_PATH = "./ressources/digital-7.ttf"
-SONO_FONT_PATH = "./ressources/Sono-Regular.ttf"
+_PACKAGE_DIR = Path(__file__).parent
+LOGO_PATH = _PACKAGE_DIR / "images" / "logo.png"
+GRAPH_ICON_PATH = _PACKAGE_DIR / "images" / "favicon.png"
+SOUND_PATH = _PACKAGE_DIR / "ressources" / "censor-beep.wav"
+DIGITAL_FONT_PATH = _PACKAGE_DIR / "ressources" / "digital-7.ttf"
+SONO_FONT_PATH = _PACKAGE_DIR / "ressources" / "Sono-Regular.ttf"
 GRAPH_REFRESH_MS = 500
 
 log = logging.getLogger(__name__)
