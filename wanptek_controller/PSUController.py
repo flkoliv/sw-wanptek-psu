@@ -129,7 +129,6 @@ class PSUController:
                 parity="N",
                 stopbits=1,
                 timeout=SERIAL_TIMEOUT_SECONDS,
-                exclusive=False,
             )
 
             frame = _build_fc03(self.model.device_address, READ_ADDRESS, READ_REGISTER_COUNT)
