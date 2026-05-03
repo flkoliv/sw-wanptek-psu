@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wanptek-controller"
+version = "1.0.0"
+description = "Desktop controller for Wanptek DC power supplies via USB/serial (Modbus RTU)"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+keywords = ["wanptek", "power-supply", "modbus", "serial", "instrument-control"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "crcmod==1.7",
+    "customtkinter==5.2.2",
+    "matplotlib==3.9.4",
+    "numpy==2.0.2",
+    "pillow==11.0.0",
+    "pygame==2.6.1",
+    "pymodbus==3.8.2",
+    "pyserial==3.5",
+    "tkdial==0.0.7",
+]
+
+[project.scripts]
+wanptek-controller = "wanptek_controller.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["wanptek_controller"]

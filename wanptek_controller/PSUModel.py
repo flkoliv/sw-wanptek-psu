@@ -7,7 +7,7 @@ import numpy as np
 
 log = logging.getLogger(__name__)
 
-PARAM_PATH = Path("./param")
+PARAM_PATH = Path.home() / ".wanptek_controller" / "param"
 GRAPH_HISTORY_SECONDS = 600
 DEFAULT_BAUDRATE = 9600
 MIN_DEVICE_ADDRESS = 0
@@ -72,6 +72,7 @@ class PSUModel:
 
     def save_settings(self) -> None:
         """Persist the current communication settings to the local parameter file."""
+        PARAM_PATH.parent.mkdir(parents=True, exist_ok=True)
         with PARAM_PATH.open("wb") as file:
             pickle.dump(self.serial_port, file)
             pickle.dump(self.baudrate, file)
