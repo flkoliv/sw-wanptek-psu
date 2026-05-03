@@ -1,4 +1,3 @@
-import inspect
 import logging
 import time
 from threading import Event, Thread
@@ -23,16 +22,24 @@ def _non_exclusive_open(self) -> None:
 _serial.Serial.open = _non_exclusive_open
 
 # pymodbus renamed the device-address parameter across versions:
-# 3.8.x: slave=   3.9-3.12: slave= (deprecated) or unit=   3.13+: dev_id=
-# Detect which name the installed version accepts.
-def _detect_slave_param() -> str:
-    for name in ("slave", "unit", "dev_id"):
-        sig = inspect.signature(ModbusClient.read_holding_registers)
-        if name in sig.parameters:
-            return name
-    return "slave"
+# 3.8.x: slave=   3.9-3.12: unit=   3.13+: dev_id=
+# Detect the correct name at first call and cache it.
+_SLAVE_PARAM: str = ""
 
-_SLAVE_PARAM = _detect_slave_param()
+
+def _with_dev(method, device_address: int, **kwargs):
+    """Call a pymodbus method using the correct device-address keyword."""
+    global _SLAVE_PARAM
+    if _SLAVE_PARAM:
+        return method(**kwargs, **{_SLAVE_PARAM: device_address})
+    for name in ("slave", "dev_id", "unit"):
+        try:
+            result = method(**kwargs, **{name: device_address})
+            _SLAVE_PARAM = name
+            return result
+        except TypeError:
+            continue
+    return method(**kwargs)
 
 READ_ADDRESS = 0x00
 READ_REGISTER_COUNT = 8
@@ -132,10 +139,11 @@ class PSUController:
             if not client.connect():
                 raise ConnectionError("Serial connection could not be opened.")
 
-            response = client.read_holding_registers(
+            response = _with_dev(
+                client.read_holding_registers,
+                self.model.device_address,
                 address=READ_ADDRESS,
                 count=READ_REGISTER_COUNT,
-                **{_SLAVE_PARAM: self.model.device_address},
             )
             if response.isError():
                 raise ConnectionError(f"Device did not respond: {response}")
@@ -245,10 +253,11 @@ class PSUController:
             if self._stop_event.is_set() or self.client is None:
                 return
 
-            response = self.client.read_holding_registers(
+            response = _with_dev(
+                self.client.read_holding_registers,
+                self.model.device_address,
                 address=READ_ADDRESS,
                 count=READ_REGISTER_COUNT,
-                **{_SLAVE_PARAM: self.model.device_address},
             )
             if response.isError():
                 raise ConnectionError(f"Modbus read error: {response}")
@@ -317,10 +326,11 @@ class PSUController:
             def _swap(v: int) -> int:
                 return ((v & 0xFF) << 8) | ((v >> 8) & 0xFF)
 
-            self.client.write_registers(
+            _with_dev(
+                self.client.write_registers,
+                self.model.device_address,
                 address=0,
                 values=[status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
-                **{_SLAVE_PARAM: self.model.device_address},
             )
         except Exception as exc:
             if self._stop_event.is_set():
