@@ -65,7 +65,8 @@ class App(customtkinter.CTk):
         icon_image = tkinter.PhotoImage(file=FAVICON_PATH)
         self.iconphoto(True, icon_image)
         self._icon_image = icon_image
-        self.iconbitmap(ICON_PATH)
+        if os.name == "nt":
+            self.iconbitmap(ICON_PATH)
 
     def _center_window(self) -> None:
         """Center the main window on the current screen."""

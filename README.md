@@ -1,6 +1,7 @@
 # Wanptek PSU Controller
 
-Application desktop Windows pour piloter une alimentation Wanptek via USB / port serie.
+Application desktop pour piloter une alimentation Wanptek via USB / port serie.
+Compatible Windows, macOS et Linux.
 
 Le programme permet de :
 
@@ -18,15 +19,15 @@ L'application repose sur une interface `customtkinter` avec :
 - deux molettes de reglage
 - une barre de boutons pour le menu, le graphe, le verrouillage, l'OCP et la sortie
 
-## Prerequis
+## Prerequis communs
 
-- Windows
-- Python 3.10
-- `tkinter` disponible dans l'installation Python
-- une alimentation Wanptek compatible
-- un adaptateur USB / serie reconnu par Windows
+- Python 3.10 ou superieur avec `tkinter` disponible
+- Une alimentation Wanptek compatible
+- Un adaptateur USB / serie reconnu par le systeme
 
-## Installation
+---
+
+## Installation — Windows
 
 ### 1. Installer Python
 
@@ -38,10 +39,8 @@ Point important :
 
 ### 2. Cloner ou copier le projet
 
-Placer le projet dans un dossier local, par exemple :
-
 ```text
-~/projets/Wanptek
+C:\projets\Wanptek
 ```
 
 ### 3. Creer l'environnement virtuel
@@ -73,21 +72,127 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
+---
+
+## Installation — macOS
+
+### 1. Installer Python
+
+```bash
+brew install python@3.10
+```
+
+Verifier que `tkinter` est present :
+
+```bash
+python3.10 -c "import tkinter"
+```
+
+Si absent, installer :
+
+```bash
+brew install python-tk@3.10
+```
+
+### 2. Cloner ou copier le projet
+
+```bash
+git clone <url-du-depot> ~/projets/Wanptek
+cd ~/projets/Wanptek
+```
+
+### 3. Creer et activer l'environnement virtuel
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+```
+
+### 4. Installer les dependances
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
+## Installation — Linux
+
+### 1. Installer Python et tkinter
+
+Sur Debian / Ubuntu :
+
+```bash
+sudo apt update
+sudo apt install python3.10 python3.10-venv python3-tk
+```
+
+Sur Fedora :
+
+```bash
+sudo dnf install python3.10 python3-tkinter
+```
+
+### 2. Autoriser l'acces au port serie
+
+Ajouter votre utilisateur au groupe `dialout` :
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+Se deconnecter puis se reconnecter pour que le changement soit pris en compte.
+
+### 3. Cloner ou copier le projet
+
+```bash
+git clone <url-du-depot> ~/projets/Wanptek
+cd ~/projets/Wanptek
+```
+
+### 4. Creer et activer l'environnement virtuel
+
+```bash
+python3.10 -m venv .venv
+source .venv/bin/activate
+```
+
+### 5. Installer les dependances
+
+```bash
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+---
+
 ## Lancement
 
-### Lancement depuis le terminal
+### Depuis le terminal (toutes plateformes)
 
-```powershell
+```bash
 python main.py
 ```
 
-### Lancement via le lanceur Windows
+### Via le lanceur graphique
+
+**Windows** (sans console) :
 
 ```powershell
 pythonw run.pyw
 ```
 
-`run.pyw` utilise le Python du dossier `.venv`. Si l'environnement virtuel n'existe pas, un message d'erreur s'affiche.
+**macOS / Linux** :
+
+```bash
+python run.pyw
+```
+
+`run.pyw` detecte automatiquement le systeme et utilise le Python du dossier `.venv`.
+Si l'environnement virtuel n'existe pas, un message d'erreur s'affiche.
+
+---
 
 ## Premiere configuration
 
@@ -95,6 +200,9 @@ Au premier lancement :
 
 1. cliquer sur `Menu`
 2. choisir le port serie correspondant a l'alimentation
+   - Windows : `COM3`, `COM4`, ...
+   - Linux : `/dev/ttyUSB0`, `/dev/ttyACM0`, ...
+   - macOS : `/dev/cu.usbserial-XXXX`, `/dev/cu.SLAB_USBtoUART`, ...
 3. choisir l'adresse Modbus de l'appareil
 4. choisir la vitesse serie
 5. cliquer sur `Save`
@@ -102,6 +210,8 @@ Au premier lancement :
 Le programme tentera ensuite de se connecter automatiquement.
 
 Les parametres sont sauvegardes dans un fichier local `param`.
+
+---
 
 ## Utilisation
 
@@ -144,13 +254,17 @@ La fenetre `Graph` affiche l'historique recent de :
 
 Le programme conserve environ 10 minutes de mesures.
 
+---
+
 ## Architecture du projet
 
-- `~/projets/Wanptek/main.py` : point d'entree principal
-- `~/projets/Wanptek/run.pyw` : lanceur Windows sans console
-- `~/projets/Wanptek/PSUModel.py` : etat de l'application et configuration sauvegardee
-- `~/projets/Wanptek/PSUController.py` : communication Modbus et logique de controle
-- `~/projets/Wanptek/PSUView.py` : interface graphique
+- `main.py` : point d'entree principal
+- `run.pyw` : lanceur sans console (Windows) / lanceur graphique (macOS, Linux)
+- `PSUModel.py` : etat de l'application et configuration sauvegardee
+- `PSUController.py` : communication Modbus et logique de controle
+- `PSUView.py` : interface graphique
+
+---
 
 ## Depannage
 
@@ -158,23 +272,24 @@ Le programme conserve environ 10 minutes de mesures.
 
 La distribution Python installee ne contient pas Tk.
 
-Solution :
+- **Windows** : reinstaller Python 3.10 avec `tcl/tk and IDLE`
+- **macOS** : `brew install python-tk@3.10`
+- **Linux** : `sudo apt install python3-tk` (ou equivalent)
 
-- reinstaller Python 3.10 avec `tcl/tk and IDLE`
-
-### PowerShell refuse `Activate.ps1`
-
-Utiliser :
+### PowerShell refuse `Activate.ps1` (Windows)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-```
-
-Puis :
-
-```powershell
 .\.venv\Scripts\Activate.ps1
 ```
+
+### Permission refusee sur le port serie (Linux)
+
+```bash
+sudo usermod -aG dialout $USER
+```
+
+Se deconnecter puis se reconnecter.
 
 ### L'application ne se connecte pas
 
@@ -184,18 +299,20 @@ Verifier :
 - que l'adresse Modbus est correcte
 - que l'alimentation est allumee
 - que le cable USB / serie fonctionne
-- que le pilote serie est bien installe sur Windows
+- que le pilote serie est bien installe
 
 ### Le graphe ne s'ouvre pas
 
 Le graphe ne s'ouvre que si au moins une mesure a deja ete recue.
 
+---
+
 ## Notes
 
 - Le projet a ete valide avec Python 3.10.
-- Le programme est optimise pour Windows.
+- Compatible Windows, macOS et Linux.
 - Le fichier `requirements.txt` contient les dependances Python du projet.
 
 ## Licence
 
-Voir le fichier `~/projets/Wanptek/LICENSE`.
+Voir le fichier `LICENSE`.
