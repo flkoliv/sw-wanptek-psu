@@ -1,3 +1,4 @@
+import inspect
 import logging
 import time
 from threading import Event, Thread
@@ -20,6 +21,18 @@ def _non_exclusive_open(self) -> None:
 
 
 _serial.Serial.open = _non_exclusive_open
+
+# pymodbus renamed the device-address parameter across versions:
+# 3.8.x: slave=   3.9-3.12: slave= (deprecated) or unit=   3.13+: dev_id=
+# Detect which name the installed version accepts.
+def _detect_slave_param() -> str:
+    for name in ("slave", "unit", "dev_id"):
+        sig = inspect.signature(ModbusClient.read_holding_registers)
+        if name in sig.parameters:
+            return name
+    return "slave"
+
+_SLAVE_PARAM = _detect_slave_param()
 
 READ_ADDRESS = 0x00
 READ_REGISTER_COUNT = 8
@@ -122,7 +135,7 @@ class PSUController:
             response = client.read_holding_registers(
                 address=READ_ADDRESS,
                 count=READ_REGISTER_COUNT,
-                slave=self.model.device_address,
+                **{_SLAVE_PARAM: self.model.device_address},
             )
             if response.isError():
                 raise ConnectionError(f"Device did not respond: {response}")
@@ -235,7 +248,7 @@ class PSUController:
             response = self.client.read_holding_registers(
                 address=READ_ADDRESS,
                 count=READ_REGISTER_COUNT,
-                slave=self.model.device_address,
+                **{_SLAVE_PARAM: self.model.device_address},
             )
             if response.isError():
                 raise ConnectionError(f"Modbus read error: {response}")
@@ -307,7 +320,7 @@ class PSUController:
             self.client.write_registers(
                 address=0,
                 values=[status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
-                slave=self.model.device_address,
+                **{_SLAVE_PARAM: self.model.device_address},
             )
         except Exception as exc:
             if self._stop_event.is_set():
