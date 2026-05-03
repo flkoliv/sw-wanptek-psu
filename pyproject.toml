@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "wanptek-controller"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Desktop controller for Wanptek DC power supplies via USB/serial (Modbus RTU)"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -30,6 +30,9 @@ dependencies = [
 
 [project.scripts]
 wanptek-controller = "wanptek_controller.main:main"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["wanptek_controller"]
