@@ -1,9 +1,10 @@
 import logging
+import struct
 import time
 from threading import Event, Thread
 
-from pymodbus import FramerType
-from pymodbus.client import ModbusSerialClient as ModbusClient
+import crcmod
+import serial
 
 log = logging.getLogger(__name__)
 
@@ -11,11 +12,37 @@ READ_ADDRESS = 0x00
 READ_REGISTER_COUNT = 8
 REFRESH_DELAY_SECONDS = 0.1
 RECONNECT_INTERVAL_SECONDS = 3.0
-SERIAL_TIMEOUT_SECONDS = 0.2
+SERIAL_TIMEOUT_SECONDS = 1.0
+
+_crc16 = crcmod.predefined.mkCrcFun("modbus")
+
+
+def _build_fc03(device_address: int, start: int, count: int) -> bytes:
+    """Build a Modbus RTU FC03 (Read Holding Registers) request frame."""
+    pdu = struct.pack(">BBHH", device_address, 0x03, start, count)
+    return pdu + struct.pack("<H", _crc16(pdu))
+
+
+def _build_fc16(device_address: int, start: int, values: list) -> bytes:
+    """Build a Modbus RTU FC16 (Write Multiple Registers) request frame."""
+    count = len(values)
+    pdu = struct.pack(">BBHHB", device_address, 0x10, start, count, count * 2)
+    for v in values:
+        pdu += struct.pack(">H", v)
+    return pdu + struct.pack("<H", _crc16(pdu))
+
+
+def _check_crc(data: bytes) -> bool:
+    """Return True if the Modbus CRC appended to data is valid."""
+    if len(data) < 3:
+        return False
+    computed = _crc16(data[:-2])
+    received = struct.unpack_from("<H", data, len(data) - 2)[0]
+    return computed == received
 
 
 class PSUController:
-    """Coordinate Modbus communication between the model and the UI."""
+    """Coordinate Modbus RTU communication between the model and the UI."""
 
     def __init__(self, model, view) -> None:
         """Initialize the controller and attempt the first connection."""
@@ -44,7 +71,7 @@ class PSUController:
         self._thread.start()
 
     def stop(self) -> None:
-        """Stop polling and close the Modbus client."""
+        """Stop polling and close the serial port."""
         self._stop_event.set()
         self.connected = False
         self.connection_error = ""
@@ -85,7 +112,7 @@ class PSUController:
             time.sleep(REFRESH_DELAY_SECONDS)
 
     def connect(self) -> bool:
-        """Open the Modbus serial connection."""
+        """Open the serial port and verify the device responds."""
         if not self.model.has_valid_connection_settings():
             self.connection_error = "Configure serial settings"
             self._mark_disconnected(log_error=False)
@@ -95,25 +122,29 @@ class PSUController:
 
         try:
             log.info("Connecting to %s", self.model.serial_port)
-            client = ModbusClient(
+            port = serial.Serial(
                 port=self.model.serial_port,
-                framer=FramerType.RTU,
                 baudrate=self.model.baudrate,
-                timeout=SERIAL_TIMEOUT_SECONDS,
+                bytesize=8,
                 parity="N",
+                stopbits=1,
+                timeout=SERIAL_TIMEOUT_SECONDS,
+                exclusive=False,
             )
-            if not client.connect():
-                raise ConnectionError("Serial connection could not be opened.")
 
-            response = client.read_holding_registers(
-                address=READ_ADDRESS,
-                count=READ_REGISTER_COUNT,
-                slave=self.model.device_address,
-            )
-            if response.isError():
-                raise ConnectionError(f"Device did not respond: {response}")
+            frame = _build_fc03(self.model.device_address, READ_ADDRESS, READ_REGISTER_COUNT)
+            port.reset_input_buffer()
+            port.write(frame)
+            expected = 5 + READ_REGISTER_COUNT * 2
+            response = port.read(expected)
+            if len(response) < expected:
+                raise ConnectionError(
+                    f"Device did not respond ({len(response)}/{expected} bytes)."
+                )
+            if not _check_crc(response):
+                raise ConnectionError("CRC mismatch on probe response.")
 
-            self.client = client
+            self.client = port
             self.connected = True
             self.connection_error = ""
             log.info("Connected to %s", self.model.serial_port)
@@ -126,14 +157,14 @@ class PSUController:
             return False
 
     def close_client(self) -> None:
-        """Close the current Modbus client if one is open."""
+        """Close the serial port if it is open."""
         if self.client is None:
             return
 
         try:
             self.client.close()
         except Exception:
-            log.debug("Error while closing Modbus client.", exc_info=True)
+            log.debug("Error while closing serial port.", exc_info=True)
         finally:
             self.client = None
 
@@ -213,20 +244,24 @@ class PSUController:
             self.lock_button_pushed = False
 
     def read_data(self) -> None:
-        """Read the device registers and update the model with decoded values."""
+        """Read device registers and update the model with decoded values."""
         try:
             if self._stop_event.is_set() or self.client is None:
                 return
 
-            response = self.client.read_holding_registers(
-                address=READ_ADDRESS,
-                count=READ_REGISTER_COUNT,
-                slave=self.model.device_address,
-            )
-            if response.isError():
-                raise ConnectionError(f"Modbus read error: {response}")
+            frame = _build_fc03(self.model.device_address, READ_ADDRESS, READ_REGISTER_COUNT)
+            self.client.reset_input_buffer()
+            self.client.write(frame)
 
-            regs = response.registers  # 8 x uint16, big-endian decoded
+            expected = 5 + READ_REGISTER_COUNT * 2
+            response = self.client.read(expected)
+            if len(response) < expected:
+                raise ConnectionError(f"Short read: {len(response)}/{expected} bytes.")
+            if not _check_crc(response):
+                raise ConnectionError("CRC mismatch on read response.")
+
+            # response[3:19] = 16 data bytes = 8 registers, big-endian
+            regs = struct.unpack(">8H", response[3:19])
 
             status_byte = (regs[0] >> 8) & 0xFF
             voltage_byte = regs[0] & 0xFF
@@ -273,8 +308,8 @@ class PSUController:
     def write_data(self) -> None:
         """Write the current setpoints to the device via Modbus FC16."""
         try:
-            if self._stop_event.is_set() or not self.client:
-                raise ConnectionError("No active Modbus client.")
+            if self._stop_event.is_set() or self.client is None:
+                raise ConnectionError("No active serial connection.")
 
             self.model.clamp_setpoints()
 
@@ -290,11 +325,13 @@ class PSUController:
             def _swap(v: int) -> int:
                 return ((v & 0xFF) << 8) | ((v >> 8) & 0xFF)
 
-            self.client.write_registers(
-                address=0,
-                values=[status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
-                slave=self.model.device_address,
+            frame = _build_fc16(
+                self.model.device_address,
+                0,
+                [status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
             )
+            self.client.write(frame)
+            self.client.read(8)  # FC16 response: addr + func + start + count + crc
         except Exception as exc:
             if self._stop_event.is_set():
                 return
