@@ -396,6 +396,8 @@ class PsuWindow(customtkinter.CTkFrame):
         if self._shutting_down:
             return
 
+        self.knob_frame.rx_label.configure(text=text)
+
         if self._controls_enabled == buttons_enabled:
             return
 
