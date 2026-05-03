@@ -28,7 +28,14 @@ LOG_DIR = Path.home() / ".wanptek_controller" / "logs"
 LOG_FILE = LOG_DIR / "app.log"
 LOG_MAX_BYTES = 1_000_000
 LOG_BACKUP_COUNT = 5
-APP_LOGGERS = {"__main__", "PSUModel", "PSUController", "PSUView"}
+APP_LOGGERS = {
+    "__main__",
+    "PSUModel", "PSUController", "PSUView",
+    "wanptek_controller.PSUModel",
+    "wanptek_controller.PSUController",
+    "wanptek_controller.PSUView",
+    "wanptek_controller.main",
+}
 
 
 if os.name == "nt":

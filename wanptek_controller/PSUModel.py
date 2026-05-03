@@ -9,7 +9,7 @@ log = logging.getLogger(__name__)
 
 PARAM_PATH = Path.home() / ".wanptek_controller" / "param"
 GRAPH_HISTORY_SECONDS = 600
-DEFAULT_BAUDRATE = 9600
+DEFAULT_BAUDRATE = 2400
 MIN_DEVICE_ADDRESS = 0
 MAX_DEVICE_ADDRESS = 31
 
