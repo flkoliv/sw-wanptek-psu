@@ -181,6 +181,8 @@ class KnobFrame(customtkinter.CTkFrame):
             font=("Sono-Regular", 10),
             text_color=MUTED_TEXT_COLOR,
             height=5,
+            width=80,
+            anchor="w",
         )
         self.rx_label.grid(row=2, column=1, padx=10, pady=0, sticky="w")
 
@@ -503,8 +505,6 @@ class PsuWindow(customtkinter.CTkFrame):
             self.knob_frame.voltage_knob.set(set_voltage)
         if max_current > 0:
             self.knob_frame.current_knob.set(set_current)
-        self.knob_frame.voltage_knob.configure(state="disabled")
-        self.knob_frame.current_knob.configure(state="disabled")
         if self._lock_button_active is not False:
             self.buttons_frame.button_lock.configure(text_color=BUTTON_TEXT_COLOR)
             self._lock_button_active = False
