@@ -157,6 +157,7 @@ class KnobFrame(customtkinter.CTkFrame):
         """Create the voltage/current knobs and the communication indicator."""
         super().__init__(parent)
         self.configure(fg_color=BACKGROUND_COLOR)
+        self.grid_columnconfigure(1, minsize=72)
 
         self.voltage_knob = self._create_knob("V ")
         self.voltage_knob.grid(row=0, column=0, padx=0, pady=10, columnspan=2)
