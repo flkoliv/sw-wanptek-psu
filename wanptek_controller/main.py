@@ -50,6 +50,7 @@ class App(customtkinter.CTk):
         super().__init__()
         self._closing = False
 
+        self.wm_attributes("-class", "WanptekController")
         self.title(WINDOW_TITLE)
         self.configure(fg_color=BG_COLOR)
         self.geometry(WINDOW_SIZE)
