@@ -196,7 +196,7 @@ class PSUController:
         self.model.reset_measurements()
         self.view.schedule_set_disabled()
         self.view.schedule_status_update(
-            self.connection_error or "Disconnected",
+            "Error" if self.connection_error else "Disconnected",
             "red",
             buttons_enabled=False,
         )
