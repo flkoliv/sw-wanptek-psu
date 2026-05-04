@@ -181,8 +181,6 @@ class KnobFrame(customtkinter.CTkFrame):
             font=("Sono-Regular", 10),
             text_color=MUTED_TEXT_COLOR,
             height=5,
-            width=80,
-            anchor="w",
         )
         self.rx_label.grid(row=2, column=1, padx=10, pady=0, sticky="w")
 
