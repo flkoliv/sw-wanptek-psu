@@ -287,8 +287,6 @@ class PsuWindow(customtkinter.CTkFrame):
 
         top_frame = customtkinter.CTkFrame(self, fg_color=BACKGROUND_COLOR)
         top_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
-        top_frame.grid_columnconfigure(0, weight=1)
-        top_frame.grid_columnconfigure(1, weight=0)
 
         self.lcd_frame = LCDFrame(top_frame)
         self.lcd_frame.grid(row=0, column=0, padx=5, pady=(10, 0), sticky="nsw")
