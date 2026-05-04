@@ -47,10 +47,9 @@ class App(customtkinter.CTk):
 
     def __init__(self) -> None:
         """Create the main window and initialize the MVC components."""
-        super().__init__()
+        super().__init__(className="WanptekController")
         self._closing = False
 
-        self.wm_attributes("-class", "WanptekController")
         self.title(WINDOW_TITLE)
         self.configure(fg_color=BG_COLOR)
         self.geometry(WINDOW_SIZE)
