@@ -15,6 +15,7 @@ Features:
 - Enable or disable the output
 - Enable or disable OCP (over-current protection)
 - Plot measurement history in a live graph window
+- Alarm sound on over-current trip (optional)
 
 ## Interface
 
@@ -24,9 +25,11 @@ The application uses a `customtkinter` interface with:
 - Two adjustment knobs
 - A button bar for Menu, Graph, Lock, OCP and Output control
 
+The window is fixed at 280 × 310 pixels.
+
 ## Requirements
 
-- Python 3.10 or later with `tkinter` available
+- Python 3.10 or later with `tkinter` available (tested up to Python 3.14)
 - A compatible Wanptek DC power supply
 - A USB-to-serial adapter recognised by your OS
 
@@ -108,6 +111,20 @@ source .venv/bin/activate      # macOS / Linux
 .\.venv\Scripts\Activate.ps1  # Windows (PowerShell)
 pip install -e .
 wanptek-controller
+```
+
+### Optional — alarm sound
+
+An alarm sound plays when over-current protection trips. This requires `pygame`, which is not installed by default.
+
+To enable it:
+
+```bash
+# pipx
+pipx install "wanptek-controller[sound]"
+
+# pip
+pip install "wanptek-controller[sound]"
 ```
 
 ---

@@ -144,7 +144,7 @@ def configure_logging() -> None:
     logging.getLogger("matplotlib").setLevel(logging.WARNING)
     logging.getLogger("PIL").setLevel(logging.WARNING)
     logging.getLogger("pygame").setLevel(logging.WARNING)
-    logging.getLogger("pymodbus").setLevel(logging.ERROR)
+
 
 
 def main() -> None:
