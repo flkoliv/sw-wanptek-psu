@@ -1,4 +1,3 @@
-import ctypes
 import logging
 import os
 import tkinter
@@ -12,11 +11,12 @@ from customtkinter.windows.widgets.appearance_mode.appearance_mode_tracker impor
 from customtkinter.windows.widgets.scaling.scaling_tracker import ScalingTracker
 
 from wanptek_controller import PSUController, PSUModel, PSUView
+from wanptek_controller import __version__
 
 _PACKAGE_DIR = Path(__file__).parent
 
-APP_ID = "monentreprise.psu_controller.1.0"
-APP_VERSION = "1.0"
+APP_ID = f"monentreprise.psu_controller.{__version__}"
+APP_VERSION = __version__
 WINDOW_TITLE = f"PSU controller {APP_VERSION}"
 WINDOW_SIZE = "280x310"
 BG_COLOR = "#23272d"
@@ -39,6 +39,7 @@ APP_LOGGERS = {
 
 
 if os.name == "nt":
+    import ctypes
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(APP_ID)
 
 
@@ -89,7 +90,7 @@ class App(customtkinter.CTk):
             return
 
         self._closing = True
-        print("Closing Wanptek PSU Controller...")
+        logging.getLogger(__name__).info("Application closing")
         logging.getLogger(__name__).info("Application shutdown requested")
         self.view.begin_shutdown()
         self.controller.stop()
@@ -150,7 +151,7 @@ def configure_logging() -> None:
 def main() -> None:
     """Run the desktop application."""
     configure_logging()
-    print("Starting Wanptek PSU Controller...")
+    logging.getLogger(__name__).info("Application started (version %s)", APP_VERSION)
     logging.getLogger(__name__).info("Application started")
     app = App()
     app.mainloop()

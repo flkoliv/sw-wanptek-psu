@@ -330,7 +330,11 @@ class PSUController:
                 [status_byte << 8, _swap(volt_raw), _swap(curr_raw)],
             )
             self.client.write(frame)
-            self.client.read(8)  # FC16 response: addr + func + start + count + crc
+            response = self.client.read(8)  # FC16 response: addr + func + start + count + crc
+            if len(response) < 8:
+                raise ConnectionError(f"Short write response: {len(response)}/8 bytes.")
+            if not _check_crc(response):
+                raise ConnectionError("CRC mismatch on write response.")
         except Exception as exc:
             if self._stop_event.is_set():
                 return

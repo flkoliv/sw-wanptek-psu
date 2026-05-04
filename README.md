@@ -226,6 +226,8 @@ The **Graph** window shows the last 10 minutes of:
 
 ```
 wanptek_controller/
+├── __init__.py      — version metadata
+├── __main__.py      — module entry point
 ├── main.py          — application entry point
 ├── PSUModel.py      — state and persisted settings
 ├── PSUController.py — Modbus communication and control logic
