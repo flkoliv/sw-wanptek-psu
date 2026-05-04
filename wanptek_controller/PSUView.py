@@ -287,6 +287,8 @@ class PsuWindow(customtkinter.CTkFrame):
 
         top_frame = customtkinter.CTkFrame(self, fg_color=BACKGROUND_COLOR)
         top_frame.grid(row=0, column=0, columnspan=2, sticky="nsew")
+        top_frame.grid_columnconfigure(0, weight=1)
+        top_frame.grid_columnconfigure(1, weight=0)
 
         self.lcd_frame = LCDFrame(top_frame)
         self.lcd_frame.grid(row=0, column=0, padx=5, pady=(10, 0), sticky="nsw")
@@ -398,7 +400,8 @@ class PsuWindow(customtkinter.CTkFrame):
         if self._shutting_down:
             return
 
-        self.knob_frame.rx_label.configure(text=text)
+        display_text = text if len(text) <= 13 else text[:12] + "…"
+        self.knob_frame.rx_label.configure(text=display_text)
 
         if self._controls_enabled == buttons_enabled:
             return
@@ -501,6 +504,8 @@ class PsuWindow(customtkinter.CTkFrame):
                 self._lock_button_active = True
             return
 
+        self.knob_frame.voltage_knob.configure(state="normal")
+        self.knob_frame.current_knob.configure(state="normal")
         if max_voltage > 0:
             self.knob_frame.voltage_knob.set(set_voltage)
         if max_current > 0:
